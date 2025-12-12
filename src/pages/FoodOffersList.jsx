@@ -7,10 +7,36 @@ export default function FoodOffersList(){
   const [items,setItems]=useState([]);
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(()=>{(async()=>{
     // eslint-disable-next-line no-empty
     try{ const data = await getAllFoodOffers(); setItems(data||[]);}catch{} finally{setLoading(false)}})()},[getAllFoodOffers])
+  
+  const handleInterestClick = (item) => {
+    setSelectedItem(item);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmRequest = async () => {
+    try {
+      await createRequest({
+        itemId: selectedItem.id,
+        itemType: 'FOOD_OFFER',
+        requester: { id: user.id },
+        owner: { id: selectedItem.owner?.id },
+      });
+      setMsg('Request sent successfully! 🎉');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Failed to send request. Please try again.');
+      setTimeout(() => setMsg(''), 3000);
+    } finally {
+      setShowConfirmModal(false);
+      setSelectedItem(null);
+    }
+  };
   
   const getCategoryEmoji = (category) => {
     const map = {
@@ -181,21 +207,7 @@ export default function FoodOffersList(){
                   <button
                     className="group/btn w-full relative overflow-hidden bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                     disabled={!user || user?.id === offer.owner?.id}
-                    onClick={async () => {
-                      try {
-                        await createRequest({
-                          itemId: offer.id,
-                          itemType: 'FOODOFFER',
-                          requester: { id: user.id },
-                          owner: { id: offer.owner?.id },
-                        });
-                        setMsg('Request sent! Shop will contact you soon. 🎉');
-                        setTimeout(() => setMsg(''), 3000);
-                      } catch {
-                        setMsg('Failed to send request. Please try again.');
-                        setTimeout(() => setMsg(''), 3000);
-                      }
-                    }}
+                    onClick={() => handleInterestClick(offer)}
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {!user || user?.id === offer.owner?.id ? 'Not Available' : 'Grab This Deal'}
@@ -213,6 +225,42 @@ export default function FoodOffersList(){
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-red-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && selectedItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform animate-scale-in">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-4xl">{getCategoryEmoji(selectedItem.category)}</span>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Confirm Interest</h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to request this <span className="font-semibold text-gray-900">{selectedItem.itemName}</span> at <span className="text-green-600 font-bold">₹{selectedItem.discountedPrice}</span>?
+                </p>
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6">
+                  <p className="text-sm text-orange-800">
+                    <strong>Note:</strong> The shop owner will be notified and will contact you for pickup details.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowConfirmModal(false); setSelectedItem(null); }}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all duration-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmRequest}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

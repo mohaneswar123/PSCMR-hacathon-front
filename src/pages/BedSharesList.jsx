@@ -6,9 +6,35 @@ export default function BedSharesList(){
   const [items,setItems]=useState([]);
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(()=>{(async()=>{
     try{ const data = await getAllBedShares(); setItems(data||[]);}catch(e){console.error(e);} finally{setLoading(false)}})()},[getAllBedShares])
+
+  const handleInterestClick = (item) => {
+    setSelectedItem(item);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmRequest = async () => {
+    try {
+      await createRequest({
+        itemId: selectedItem.id,
+        itemType: 'BEDSHARE',
+        requester: { id: user.id },
+        owner: { id: selectedItem.owner?.id },
+      });
+      setMsg('Request sent successfully! 🎉');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Failed to send request. Please try again.');
+      setTimeout(() => setMsg(''), 3000);
+    } finally {
+      setShowConfirmModal(false);
+      setSelectedItem(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white py-16 px-6">
@@ -121,21 +147,7 @@ export default function BedSharesList(){
                   <button
                     className="group/btn w-full relative overflow-hidden bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                     disabled={!user || user?.id === b.owner?.id}
-                    onClick={async () => {
-                      try {
-                        await createRequest({
-                          itemId: b.id,
-                          itemType: 'BEDSHARE',
-                          requester: { id: user.id },
-                          owner: { id: b.owner?.id },
-                        });
-                        setMsg('Request sent successfully! 🎉');
-                        setTimeout(() => setMsg(''), 3000);
-                      } catch {
-                        setMsg('Failed to send request. Please try again.');
-                        setTimeout(() => setMsg(''), 3000);
-                      }
-                    }}
+                    onClick={() => handleInterestClick(b)}
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {!user || user?.id === b.owner?.id ? 'Not Available' : "I'm Interested"}
@@ -153,6 +165,42 @@ export default function BedSharesList(){
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && selectedItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform animate-scale-in">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-4xl">🛏️</span>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Confirm Interest</h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to send a booking request for <span className="font-semibold text-gray-900">{selectedItem.bedCount} bed(s)</span> at <span className="font-semibold text-gray-900">{selectedItem.location}</span>?
+                </p>
+                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-6">
+                  <p className="text-sm text-indigo-800">
+                    <strong>Note:</strong> The property owner will be notified and can view your contact information.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowConfirmModal(false); setSelectedItem(null); }}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all duration-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmRequest}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold rounded-xl hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

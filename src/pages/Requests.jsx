@@ -7,6 +7,8 @@ export default function Requests(){
   const [mine,setMine]=useState([]);
   const [loading,setLoading]=useState(true);
   const [showCancelled,setShowCancelled]=useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   useEffect(()=>{(async()=>{
     try{
@@ -17,6 +19,29 @@ export default function Requests(){
       setIncoming(a||[]); setMine(b||[]);
     } finally { setLoading(false); }
   })()},[getOwnerRequests, getMyRequests]);
+
+  const handleConfirmClick = (action, requestId, actionType, requesterName, itemType, itemId) => {
+    setConfirmAction({
+      action,
+      requestId,
+      actionType,
+      requesterName,
+      itemType,
+      itemId
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+
+    try {
+      await confirmAction.action();
+    } finally {
+      setShowConfirmModal(false);
+      setConfirmAction(null);
+    }
+  };
 
   const onSet = async(id, value)=>{
     await setRequestStatus(id, value);
@@ -134,7 +159,14 @@ export default function Requests(){
                             <button 
                               className="group/btn flex-1 relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0" 
                               disabled={r.status==='ACCEPTED'} 
-                              onClick={()=>onSet(r.id,'ACCEPTED')}
+                              onClick={()=>handleConfirmClick(
+                                () => onSet(r.id,'ACCEPTED'),
+                                r.id,
+                                'ACCEPT',
+                                r.requester?.name,
+                                r.itemType,
+                                r.itemId
+                              )}
                             >
                               <span className="relative z-10 flex items-center justify-center gap-2">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +179,14 @@ export default function Requests(){
                             <button 
                               className="group/btn flex-1 relative overflow-hidden bg-white border-2 border-red-400 text-red-600 font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0" 
                               disabled={r.status==='REJECTED'} 
-                              onClick={()=>onSet(r.id,'REJECTED')}
+                              onClick={()=>handleConfirmClick(
+                                () => onSet(r.id,'REJECTED'),
+                                r.id,
+                                'REJECT',
+                                r.requester?.name,
+                                r.itemType,
+                                r.itemId
+                              )}
                             >
                               <span className="relative z-10 flex items-center justify-center gap-2">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +298,14 @@ export default function Requests(){
                             <button
                               className="group/btn w-full relative overflow-hidden bg-white border-2 border-gray-400 text-gray-700 font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                               disabled={r.status==='CANCELLED' || r.status==='ACCEPTED'}
-                              onClick={()=>onCancel(r.id)}
+                              onClick={()=>handleConfirmClick(
+                                () => onCancel(r.id),
+                                r.id,
+                                'CANCEL',
+                                r.owner?.name,
+                                r.itemType,
+                                r.itemId
+                              )}
                             >
                               <span className="relative z-10 flex items-center justify-center gap-2">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,6 +326,96 @@ export default function Requests(){
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform animate-scale-in">
+            <div className="text-center">
+              {/* Icon */}
+              <div className={`w-20 h-20 bg-gradient-to-br ${
+                confirmAction.actionType === 'ACCEPT' ? 'from-green-500 to-emerald-600' :
+                confirmAction.actionType === 'REJECT' ? 'from-red-500 to-red-600' :
+                'from-gray-500 to-gray-600'
+              } rounded-full flex items-center justify-center mx-auto mb-6`}>
+                <span className="text-4xl">
+                  {confirmAction.actionType === 'ACCEPT' ? '✅' :
+                   confirmAction.actionType === 'REJECT' ? '❌' : '🚫'}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                {confirmAction.actionType === 'ACCEPT' ? 'Accept Request?' :
+                 confirmAction.actionType === 'REJECT' ? 'Reject Request?' :
+                 'Cancel Request?'}
+              </h3>
+
+              {/* Message */}
+              <p className="text-gray-600 mb-6">
+                {confirmAction.actionType === 'ACCEPT' && (
+                  <>
+                    Are you sure you want to <strong>accept</strong> the request from <strong>{confirmAction.requesterName}</strong> for <strong>{confirmAction.itemType} #{confirmAction.itemId}</strong>?
+                  </>
+                )}
+                {confirmAction.actionType === 'REJECT' && (
+                  <>
+                    Are you sure you want to <strong>reject</strong> the request from <strong>{confirmAction.requesterName}</strong> for <strong>{confirmAction.itemType} #{confirmAction.itemId}</strong>?
+                  </>
+                )}
+                {confirmAction.actionType === 'CANCEL' && (
+                  <>
+                    Are you sure you want to <strong>cancel</strong> your request to <strong>{confirmAction.requesterName}</strong> for <strong>{confirmAction.itemType} #{confirmAction.itemId}</strong>?
+                  </>
+                )}
+              </p>
+
+              {/* Note */}
+              <div className={`bg-${
+                confirmAction.actionType === 'ACCEPT' ? 'green' :
+                confirmAction.actionType === 'REJECT' ? 'red' : 'gray'
+              }-50 border border-${
+                confirmAction.actionType === 'ACCEPT' ? 'green' :
+                confirmAction.actionType === 'REJECT' ? 'red' : 'gray'
+              }-200 rounded-2xl p-4 mb-6`}>
+                <p className={`text-sm text-${
+                  confirmAction.actionType === 'ACCEPT' ? 'green' :
+                  confirmAction.actionType === 'REJECT' ? 'red' : 'gray'
+                }-800`}>
+                  <strong>Note:</strong> {confirmAction.actionType === 'ACCEPT' ? 'The requester will be notified and can proceed with the arrangement.' :
+                   confirmAction.actionType === 'REJECT' ? 'The requester will be notified that their request was declined.' :
+                   'The owner will be notified that you are no longer interested.'}
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                  className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={handleConfirmAction}
+                  className={`flex-1 px-6 py-3 bg-gradient-to-r ${
+                    confirmAction.actionType === 'ACCEPT' ? 'from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' :
+                    confirmAction.actionType === 'REJECT' ? 'from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' :
+                    'from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700'
+                  } text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg`}
+                >
+                  {confirmAction.actionType === 'ACCEPT' ? 'Yes, Accept' :
+                   confirmAction.actionType === 'REJECT' ? 'Yes, Reject' :
+                   'Yes, Cancel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

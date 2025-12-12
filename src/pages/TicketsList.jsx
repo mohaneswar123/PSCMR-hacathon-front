@@ -7,9 +7,35 @@ export default function TicketsList(){
   const [items,setItems]=useState([]);
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(()=>{(async()=>{
     try{ const data = await getAllTickets(); setItems(data||[]);}catch{} finally{setLoading(false)}})()},[])
+
+  const handleInterestClick = (item) => {
+    setSelectedItem(item);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmRequest = async () => {
+    try {
+      await createRequest({
+        itemId: selectedItem.id,
+        itemType: 'TICKET',
+        requester: { id: user.id },
+        owner: { id: selectedItem.owner?.id },
+      });
+      setMsg('Request sent successfully! 🎉');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Failed to send request. Please try again.');
+      setTimeout(() => setMsg(''), 3000);
+    } finally {
+      setShowConfirmModal(false);
+      setSelectedItem(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white py-16 px-6">
@@ -130,21 +156,7 @@ export default function TicketsList(){
                   <button
                     className="group/btn w-full relative overflow-hidden bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                     disabled={!user || user?.id === t.owner?.id}
-                    onClick={async () => {
-                      try {
-                        await createRequest({
-                          itemId: t.id,
-                          itemType: 'TICKET',
-                          requester: { id: user.id },
-                          owner: { id: t.owner?.id },
-                        });
-                        setMsg('Request sent successfully! 🎉');
-                        setTimeout(() => setMsg(''), 3000);
-                      } catch {
-                        setMsg('Failed to send request. Please try again.');
-                        setTimeout(() => setMsg(''), 3000);
-                      }
-                    }}
+                    onClick={() => handleInterestClick(t)}
                   >
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {!user || user?.id === t.owner?.id ? 'Not Available' : "I'm Interested"}
@@ -165,6 +177,56 @@ export default function TicketsList(){
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform animate-scale-in">
+            <div className="text-center">
+              {/* Icon */}
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🎫</span>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                Confirm Interest
+              </h3>
+
+              {/* Message */}
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to request a ticket for <strong>{selectedItem.eventName}</strong>?
+              </p>
+
+              {/* Note */}
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 mb-6">
+                <p className="text-sm text-purple-800">
+                  <strong>Note:</strong> The ticket seller will be notified and can view your contact information to arrange the transfer.
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setSelectedItem(null);
+                  }}
+                  className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmRequest}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
